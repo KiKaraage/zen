@@ -464,7 +464,7 @@
   }
 }
 
-:root[zen-single-toolbar="true"] {  
+:root[zen-single-toolbar="true"] {
   #urlbar[open] {
     width: var(--zen-urlbar-single-toolbar-open-width);
   }
