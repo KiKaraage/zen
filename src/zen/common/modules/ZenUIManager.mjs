@@ -59,7 +59,15 @@ class nsZenUIManager {
     document.addEventListener("popuphidden", this);
     document.addEventListener("mousedown", this, true);
     window.addEventListener("TabClose", this);
-    window.addEventListener("FullZoomChange", this);
+    for (const id of [
+      "cmd_fullZoomEnlarge",
+      "cmd_fullZoomReduce",
+      "cmd_fullZoomReset",
+    ]) {
+      document.getElementById(id)?.addEventListener("command", () =>
+        this.#onZoomCommand()
+      );
+    }
 
     gZenWorkspaces.promiseInitialized.finally(() => {
       this._hasLoadedDOM = true;
@@ -95,9 +103,6 @@ class nsZenUIManager {
         break;
       case "TabClose":
         this.onTabClose(event);
-        break;
-      case "FullZoomChange":
-        this.#onFullZoomChange(event);
         break;
     }
   }
@@ -307,8 +312,8 @@ class nsZenUIManager {
     return this.#toasts.show(messageId, options);
   }
 
-  #onFullZoomChange(event) {
-    const browser = event.originalTarget;
+  #onZoomCommand() {
+    const browser = gBrowser.selectedBrowser;
     const isSingleToolbar = gZenVerticalTabsManager._hasSetSingleToolbar;
     const zoomButtonHidden =
       isSingleToolbar &&

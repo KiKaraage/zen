@@ -45,6 +45,7 @@ export class nsZenToastManager {
       ) {
         return;
       }
+      toast._zenToastVisible = false;
       gZenUIManager.motion
         .animate(
           toast,
@@ -58,6 +59,11 @@ export class nsZenToastManager {
           }
         });
     };
+
+    if (reused && toast._zenToastVisible) {
+      this.#scheduleHide(messageId, hide, timeout);
+      return;
+    }
 
     if (reused) {
       await gZenUIManager.motion.animate(
@@ -75,6 +81,7 @@ export class nsZenToastManager {
     if (!toast.style.transform) {
       toast.style.transform = "scale(0)";
     }
+    toast._zenToastVisible = true;
     await gZenUIManager.motion.animate(
       toast,
       { scale: 1 },
