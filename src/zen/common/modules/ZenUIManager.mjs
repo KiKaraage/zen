@@ -39,6 +39,9 @@ class nsZenUIManager {
 
   #toasts = new nsZenToastManager();
   #urlbar = new nsZenUrlbarController();
+  #zoomCommandPending = false;
+  #zoomCommandTimer = null;
+  #zoomCommandBrowser = null;
 
   // Elements that get `has-popup-menu` while a popup opened from them is up.
   #popupTrackingElements = new Set();
@@ -59,14 +62,24 @@ class nsZenUIManager {
     document.addEventListener("popuphidden", this);
     document.addEventListener("mousedown", this, true);
     window.addEventListener("TabClose", this);
+    window.addEventListener("FullZoomChange", this);
     for (const id of [
       "cmd_fullZoomEnlarge",
       "cmd_fullZoomReduce",
       "cmd_fullZoomReset",
     ]) {
-      document.getElementById(id)?.addEventListener("command", () =>
-        this.#onZoomCommand()
-      );
+      document.getElementById(id)?.addEventListener("command", () => {
+        this.#zoomCommandPending = true;
+        this.#zoomCommandBrowser = gBrowser.selectedBrowser;
+        if (this.#zoomCommandTimer) {
+          clearTimeout(this.#zoomCommandTimer);
+        }
+        this.#zoomCommandTimer = setTimeout(() => {
+          this.#zoomCommandPending = false;
+          this.#zoomCommandBrowser = null;
+          this.#zoomCommandTimer = null;
+        }, 1000);
+      });
     }
 
     gZenWorkspaces.promiseInitialized.finally(() => {
@@ -103,6 +116,9 @@ class nsZenUIManager {
         break;
       case "TabClose":
         this.onTabClose(event);
+        break;
+      case "FullZoomChange":
+        this.#onFullZoomChange(event);
         break;
     }
   }
@@ -312,8 +328,23 @@ class nsZenUIManager {
     return this.#toasts.show(messageId, options);
   }
 
-  #onZoomCommand() {
-    const browser = gBrowser.selectedBrowser;
+  #onFullZoomChange(event) {
+    const browser = event.originalTarget;
+    if (browser !== gBrowser.selectedBrowser) {
+      return;
+    }
+    if (
+      !this.#zoomCommandPending ||
+      browser !== this.#zoomCommandBrowser
+    ) {
+      return;
+    }
+    this.#zoomCommandPending = false;
+    this.#zoomCommandBrowser = null;
+    if (this.#zoomCommandTimer) {
+      clearTimeout(this.#zoomCommandTimer);
+      this.#zoomCommandTimer = null;
+    }
     const isSingleToolbar = gZenVerticalTabsManager._hasSetSingleToolbar;
     const zoomButtonHidden =
       isSingleToolbar &&
@@ -331,12 +362,7 @@ class nsZenUIManager {
       (!browser.contentPrincipal || browser.contentPrincipal.isNullPrincipal);
     const isPdfViewer =
       browser.contentPrincipal?.spec === "resource://pdf.js/web/viewer.html";
-    if (
-      browser !== gBrowser.selectedBrowser ||
-      !showToast ||
-      isBlankPage ||
-      isPdfViewer
-    ) {
+    if (!showToast || isBlankPage || isPdfViewer) {
       return;
     }
 
